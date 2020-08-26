@@ -47,7 +47,7 @@ def validationHelper(candidates, start_time, end_time, interviewer_id, update = 
     cmd2 = "SELECT count(DISTINCT(candidate_id)) FROM candidates  as T1 WHERE T1.interview_id = ( SELECT T2.interview_id FROM interview as T2 WHERE NOT(T2.end_time < {}  OR  {} < T2.start_time))".format(start_time, end_time)
     if update:
         cmd1 = "SELECT interview_id, interviewer_id FROM interview WHERE interview_id <> {} AND NOT(end_time < {}  OR  {} < start_time)".format(interview_id, start_time, end_time)
-        cmd2 = "SELECT count(DISTINCT(candidate_id)) FROM candidates  as T1 WHERE T1.interview_id = ( SELECT T2.interview_id FROM interview as T2 WHERE interview_id <> {} AND NOT(T2.end_time < {}  OR  {} < T2.start_time))".format(interview_id, start_time, end_time)
+        cmd2 = "SELECT DISTINCT(candidate_id) FROM candidates  as T1 WHERE T1.interview_id = ( SELECT T2.interview_id FROM interview as T2 WHERE interview_id <> {} AND NOT(T2.end_time < {}  OR  {} < T2.start_time))".format(interview_id, start_time, end_time)
     ans = 3
     try:
         with sql.connect('database.db') as con:
@@ -55,15 +55,19 @@ def validationHelper(candidates, start_time, end_time, interviewer_id, update = 
             curr = con.cursor()
             curr.execute(cmd1)
             rows = curr.fetchall()
+            print(rows)
             for row in rows:
                 if row['interviewer_id'] == interviewer_id:
                     ans = 1
-                    raise Exception("1")
+                    raise Exception("1")            
             curr.execute(cmd2)
-            candidateBusy = curr.fetchall()[0]['count(DISTINCT(candidate_id))']
-            if candidateBusy > 0:
-                ans = 2
-                raise Exception("2")
+            candidateBusy = curr.fetchall()
+            candidateBusy = set([x['candidate_id'] for x in candidateBusy])
+            print(candidateBusy)
+            for c in candidates:
+                if c in candidateBusy:
+                    ans = 2
+                    raise Exception("2")
             con.close()
             ans=0
     except Exception as ex:
@@ -141,19 +145,26 @@ def viewList():
 @app.route('/edit/<interview_id>')
 def edit(interview_id):
     user_id = getting_user_id()
-    cmd = "SELECT * FROM interview WHERE interview_id = {}".format(interview_id)
+    hmap = {}
+    for user in user_id:
+        hmap[user] = 0
+    cmd1 = "SELECT * FROM interview WHERE interview_id = {}".format(interview_id)
+    cmd2 = "SELECT candidate_id FROM candidates WHERE interview_id = {}".format(interview_id)
     try:
         with sql.connect('database.db') as con:
             con.row_factory = dict_factory
             curr = con.cursor()
-            curr.execute(cmd)
+            curr.execute(cmd1)
             rows = curr.fetchall()[0]
-            print(rows)
+            curr.execute(cmd2)
+            temp = curr.fetchall()
+            for x in temp:
+                hmap[x['candidate_id']] = 1
     except Exception as ex:
             con.rollback()
             print(ex)
     finally:
-        return render_template('edit.html', rows = rows, user_id = user_id)
+        return render_template('edit.html', rows = rows, user_id = user_id, hmap = hmap)
         con.close()
 
 @app.route('/editForm', methods = ['POST'])
@@ -162,7 +173,8 @@ def editForm():
     start_time = request.form['start_time']
     end_time = request.form['end_time']
     interview_id = request.form['interview_id']
-    candidates = candidates_from_interview_id(interview_id)    
+    candidates = request.form.getlist('candidate_id')
+    print("lint173", candidates)
     try:
         valid = validationHelper(candidates, start_time, end_time, interviewer_id, 1, interview_id)
         if valid == 1:
@@ -175,10 +187,17 @@ def editForm():
             msg = "database error"
             print(msg)
         else:
-            cmd = "UPDATE interview SET start_time = {}, end_time = {}, interviewer_id = '{}' WHERE interview_id = {};".format(start_time, end_time, interviewer_id, interview_id)
+            cmd1 = "UPDATE interview SET start_time = {}, end_time = {}, interviewer_id = '{}' WHERE interview_id = {};".format(start_time, end_time, interviewer_id, interview_id)
+            cmd2 = "DELETE FROM candidates WHERE interview_id = {}".format(interview_id)
             with sql.connect('database.db') as con:
                 cur = con.cursor()
-                cur.execute(cmd)
+                cur.execute(cmd1)
+                cur.execute(cmd2)
+                # adding candidates
+                for candidate_id in candidates:
+                    print(interview_id, candidate_id)
+                    cmd3 = "INSERT INTO candidates VALUES ({}, '{}')".format(interview_id, candidate_id)
+                    cur.execute(cmd3)
                 con.commit()
                 msg="Interview Details successfully updated"
 

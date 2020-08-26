@@ -31,6 +31,17 @@
                 {% endfor %}                
             </select><br>
 
+            Candidate ID
+            <select name = "candidate_id" multiple required>
+                {% for candidate_id, sel in hmap.items()%}
+                    {% if sel == 1 %}
+                        <option value={{candidate_id}} selected>{{candidate_id}}</option>
+                    {% else %}
+                        <option value={{candidate_id}}>{{candidate_id}}</option>
+                    {% endif %}
+                {% endfor %}                
+            </select><br>
+
             <input type="submit" value="Update">
         </form>
         <h4><a href="/">Go Home Page</a></h4>
