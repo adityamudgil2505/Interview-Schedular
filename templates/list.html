@@ -3,6 +3,7 @@
     <body>
         <table>
             <thead>
+                <td>Edit</td>
                 <td>Interview ID</td>
                 <td>Start Time</td>
                 <td>End Time</td>
@@ -11,6 +12,7 @@
             </thead>
             {% for row in rows %}
                 <tr>
+                    <td><a href = "/edit/{{row['interview_id']}}">Edit</a></td>
                     <td>{{row["interview_id"]}}</td>
                     <td>{{row["start_time"]}}</td>
                     <td>{{row["end_time"]}}</td>
