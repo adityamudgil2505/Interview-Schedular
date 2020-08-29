@@ -18,7 +18,9 @@ def getting_user_id():
             curr = con.cursor()
             curr.execute("SELECT email_id FROM users")
             rows = curr.fetchall()
+            print(rows)
             rows = [ x['email_id'] for x in rows]
+            print(rows)
     except Exception as ex:
             con.rollback()
             print(ex)
@@ -138,13 +140,15 @@ def viewList():
     for i in range(len(rows)):
         row = rows[i]
         email_id = candidates_from_interview_id(row['interview_id'])
+        print(email_id)
         email_id = '  ||  '.join(email_id)
+        print(email_id)
         rows[i]['email'] = email_id
     return render_template('list.html', rows = rows)
 
 @app.route('/edit/<interview_id>')
 def edit(interview_id):
-    user_id = getting_user_id()
+    user_id = getting_user_id() #// ["email1" : 0, "email2": 0, ...]
     hmap = {}
     for user in user_id:
         hmap[user] = 0
@@ -158,8 +162,10 @@ def edit(interview_id):
             rows = curr.fetchall()[0]
             curr.execute(cmd2)
             temp = curr.fetchall()
+            # // [["person1"], ["person2"]]
             for x in temp:
                 hmap[x['candidate_id']] = 1
+            print(hmap)
     except Exception as ex:
             con.rollback()
             print(ex)
@@ -208,6 +214,18 @@ def editForm():
     finally:
         return render_template("home.html", msg = msg)
         con.close()
+
+@app.route('/delete/<interview_id>')
+def delete(interview_id):
+    cmd1 = "DELETE FROM interview WHERE interview_id = {}".format(interview_id)
+    cmd2 = "DELETE FROM candidates WHERE interview_id = {}".format(interview_id)
+    with sql.connect('database.db') as con:
+        cur = con.cursor()
+        cur.execute(cmd1)
+        cur.execute(cmd2)
+        con.commit()
+        msg="Interview Details successfully DELETED"
+    return viewList()
 
 
 if __name__ == '__main__':
